@@ -1,0 +1,896 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>CI ADMIN PANEL</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #0f1724;
+      --muted: #94a3b8;
+      --accent: #06b6d4;
+      --success: #4ade80;
+      --warn: #fbbf24;
+      --danger: #ef4444;
+    }
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: #e6eef8;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    /* Login Screen Overlay */
+    #login-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: var(--bg);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    .login-card {
+      background: var(--panel);
+      padding: 28px 24px;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 360px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+      border: 1px solid rgba(255,255,255,0.06);
+      text-align: center;
+    }
+    .login-card h2 {
+      margin: 0 0 6px 0;
+      font-size: 20px;
+      color: var(--accent);
+    }
+    .login-card p {
+      margin: 0 0 20px 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .login-form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .login-form input {
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: #0b1220;
+      color: inherit;
+      font-size: 14px;
+      outline: none;
+    }
+    .login-form input:focus {
+      border-color: var(--accent);
+    }
+    .login-btn {
+      background: linear-gradient(90deg, var(--accent), #60a5fa);
+      color: #021124;
+      border: none;
+      padding: 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 14px;
+      margin-top: 4px;
+    }
+    #login-error {
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--danger);
+      display: none;
+    }
+
+    /* Main App Interface */
+    #app-container {
+      display: none; /* Hidden until authenticated */
+    }
+
+    header {
+      background: var(--panel);
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 1px 0 rgba(255,255,255,0.02);
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    header h1 { margin: 0; font-size: 16px; }
+    
+    .header-status-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    #net-status {
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-weight: bold;
+      background: rgba(255,255,255,0.05);
+    }
+    #net-status.online { color: var(--success); border: 1px solid var(--success); }
+    #net-status.offline { color: var(--warn); border: 1px solid var(--warn); }
+
+    #clock { font-family: monospace; color: var(--muted); font-size: 13px; }
+    
+    main {
+      max-width: 1300px; 
+      margin: 16px auto; 
+      padding: 0 12px;
+      display: grid; 
+      grid-template-columns: 340px 1fr; 
+      gap: 16px; 
+      box-sizing: border-box;
+    }
+    
+    .card { 
+      background: #0f1724; 
+      padding: 16px; 
+      border-radius: 12px; 
+      box-shadow: 0 6px 18px rgba(0,0,0,0.6); 
+      box-sizing: border-box;
+      width: 100%;
+    }
+    
+    #video { width: 100%; max-width: 320px; border-radius: 8px; background: #000; display: block; margin: 0 auto; }
+    #result { margin-top: 12px; text-align: center; font-weight: 600; min-height: 28px; font-size: 14px; }
+    
+    .controls { display:flex; gap:10px; justify-content:center; margin-top:10px; }
+    button { 
+      background: linear-gradient(90deg, var(--accent), #60a5fa); 
+      color:#021124; 
+      border:none; 
+      padding:10px 14px; 
+      border-radius:8px; 
+      cursor:pointer; 
+      font-weight:700; 
+      touch-action: manipulation;
+    }
+    button[disabled]{ opacity:.6; cursor:not-allowed; }
+    
+    #logs-controls { display:flex; gap:8px; align-items:center; margin-bottom:12px; flex-wrap:wrap; }
+    #logs-search { 
+      flex:1; 
+      min-width:140px; 
+      padding:10px; 
+      border-radius:8px; 
+      border:1px solid rgba(255,255,255,0.1); 
+      background: #0b1220; 
+      color:inherit; 
+      font-size: 14px;
+    }
+    .action-btn { background:#3b82f6; color:white; padding:8px 12px; border-radius:8px; border:none; cursor:pointer; font-weight:700; font-size: 13px;}
+    .reset-btn { background:var(--danger); color:white; }
+    .logout-btn { background: var(--muted); color: #021124; margin-left: 8px; }
+
+    /* Carousel Nav Bar */
+    .carousel-header-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding: 0 4px;
+    }
+    .carousel-nav-btns { display: flex; gap: 6px; }
+    .carousel-nav-btns button {
+      padding: 6px 12px;
+      font-size: 13px;
+      background: rgba(255, 255, 255, 0.08);
+      color: #e6eef8;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+    }
+
+    /* Container for Carousel Snapping */
+    .table-responsive {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scroll-snap-type: x mandatory;
+      scroll-behavior: smooth;
+      padding-bottom: 8px;
+    }
+
+    /* Standard Desktop View Table */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.04); text-align: center; }
+    th { background: rgba(255,255,255,0.03); }
+    th.left-align, td.left-align { text-align: left; }
+    tr:nth-child(even){ background: rgba(255,255,255,0.01); }
+    .no-records { text-align:center; color:var(--muted); padding:18px; }
+
+    /* Forms */
+    .scan-options, .manual-box { margin-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px; }
+    .manual-box h3, .scan-options h3 { margin: 0 0 8px 0; font-size: 14px; color: var(--accent); }
+    .manual-form, .scan-form { display: flex; flex-direction: column; gap: 8px; }
+    .manual-form input, .manual-form select, .scan-form select { 
+      padding: 10px; 
+      border-radius: 6px; 
+      border: 1px solid rgba(255,255,255,0.1); 
+      background: #0b1220; 
+      color: inherit; 
+      font-size: 14px;
+    }
+    .form-row { display: flex; gap: 8px; }
+    .form-row > * { flex: 1; }
+
+    /* Mobile & Tablet Carousel Card Layout */
+    @media (max-width: 1024px) {
+      main { grid-template-columns: 1fr; }
+      
+      .table-responsive {
+        display: flex;
+        gap: 12px;
+        overflow-x: auto;
+        padding: 4px 2px 14px 2px;
+      }
+      
+      table, thead, tbody, th, td, tr { display: block; }
+      thead { display: none; }
+
+      #logs-body {
+        display: flex;
+        gap: 12px;
+        width: 100%;
+      }
+
+      #logs-body tr {
+        flex: 0 0 85%;
+        max-width: 320px;
+        background: #0b1220;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 12px;
+        padding: 12px 14px;
+        scroll-snap-align: center;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      }
+
+      #logs-body td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+        text-align: right;
+        font-size: 13px;
+      }
+
+      #logs-body td:last-child { border-bottom: none; }
+
+      #logs-body td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: var(--muted);
+        text-align: left;
+        padding-right: 8px;
+      }
+
+      #logs-body td.left-align {
+        display: block;
+        text-align: left;
+        margin-bottom: 6px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+      }
+
+      #logs-body td.left-align::before { display: none; }
+      #logs-body tr .no-records { width: 100%; text-align: center; }
+      #logs-body tr .no-records::before { display: none; }
+    }
+  </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
+</head>
+<body>
+
+  <!-- LOGIN OVERLAY -->
+  <div id="login-overlay">
+    <div class="login-card">
+      <h2>🦷 Dentistry Admin Login</h2>
+      <p>Please enter your admin credentials to continue.</p>
+      <form id="login-form" class="login-form">
+        <input type="text" id="login-username" placeholder="Username" required autocomplete="off" />
+        <input type="password" id="login-password" placeholder="Password" required />
+        <button type="submit" class="login-btn">Log In</button>
+      </form>
+      <div id="login-error">Invalid username or password.</div>
+    </div>
+  </div>
+
+  <!-- MAIN APP PANEL CONTAINER -->
+  <div id="app-container">
+    <header>
+      <h1>📋 Admin DTR Panel — Dentistry</h1>
+      <div class="header-status-box">
+        <div id="net-status" class="online">🟢 Online</div>
+        <div id="clock">--:--:-- PM (PHT)</div>
+        <button id="logout-btn" class="action-btn logout-btn">🚪 Logout</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="card" id="scanner-card">
+        <video id="video" muted autoplay playsinline></video>
+        <div id="result">Scanner idle</div>
+
+        <div class="scan-options">
+          <h3>📷 Scanning Shift Option</h3>
+          <div class="scan-form">
+            <select id="scan-session">
+              <option value="Morning">Morning Shift</option>
+              <option value="Afternoon">Afternoon Shift</option>
+              <option value="Evening">Evening Shift</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button id="start-btn">Start Scanner</button>
+          <button id="stop-btn" disabled>Stop Scanner</button>
+        </div>
+
+        <!-- Manual Input Form -->
+        <div class="manual-box">
+          <h3>📝 Manual Entry Input</h3>
+          <form id="manual-form" class="manual-form">
+            <input type="email" id="manual-email" placeholder="Email Address" required />
+            <input type="text" id="manual-name" placeholder="Full Name" required />
+            <div class="form-row">
+              <select id="manual-session" required>
+                <option value="Morning">Morning</option>
+                <option value="Afternoon">Afternoon</option>
+                <option value="Evening">Evening</option>
+              </select>
+              <select id="manual-mode" required>
+                <option value="IN">TIME IN</option>
+                <option value="OUT">TIME OUT</option>
+              </select>
+            </div>
+            <input type="time" id="manual-time" required />
+            <button type="submit">Submit Record</button>
+          </form>
+        </div>
+      </section>
+
+      <section class="card" id="logs-card">
+        <div id="logs-controls">
+          <input id="logs-search" placeholder="Search name/email..." />
+          <button id="export-btn" class="action-btn">💾 CSV</button>
+          <button id="print-btn" class="action-btn">🖨️ Print</button>
+          <button id="reset-btn" class="action-btn reset-btn">🔄 Reset</button>
+        </div>
+
+        <!-- Carousel Navigation Header -->
+        <div class="carousel-header-controls">
+          <span style="font-size: 12px; color: var(--muted);">Swipe cards horizontal 💬</span>
+          <div class="carousel-nav-btns">
+            <button id="slide-left" title="Scroll Left">◀</button>
+            <button id="slide-right" title="Scroll Right">▶</button>
+          </div>
+        </div>
+
+        <div class="table-responsive" id="table-container">
+          <table id="logs-table" aria-live="polite">
+            <thead>
+              <tr>
+                <th class="left-align">Name</th>
+                <th>Morning In</th>
+                <th>Morning Out</th>
+                <th>Afternoon In</th>
+                <th>Afternoon Out</th>
+                <th>Evening In</th>
+                <th>Evening Out</th>
+              </tr>
+            </thead>
+            <tbody id="logs-body">
+              <tr><td colspan="7" class="no-records">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getDatabase, ref, onValue, get, set, remove } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+  // --- HARDCODED AUTHENTICATION LOGIC ---
+  const HARDCODED_USER = "Dentistry";
+  const HARDCODED_PASS = "Dentistry2026";
+
+  const loginOverlay = document.getElementById('login-overlay');
+  const loginForm = document.getElementById('login-form');
+  const loginUsernameInput = document.getElementById('login-username');
+  const loginPasswordInput = document.getElementById('login-password');
+  const loginErrorMsg = document.getElementById('login-error');
+  const appContainer = document.getElementById('app-container');
+  const logoutBtn = document.getElementById('logout-btn');
+
+  function checkAuthStatus() {
+    if (sessionStorage.getItem('ci_admin_logged_in') === 'true') {
+      loginOverlay.style.display = 'none';
+      appContainer.style.display = 'block';
+    } else {
+      loginOverlay.style.display = 'flex';
+      appContainer.style.display = 'none';
+    }
+  }
+
+  loginForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const username = loginUsernameInput.value.trim();
+    const password = loginPasswordInput.value.trim();
+
+    if (username === HARDCODED_USER && password === HARDCODED_PASS) {
+      sessionStorage.setItem('ci_admin_logged_in', 'true');
+      loginErrorMsg.style.display = 'none';
+      loginForm.reset();
+      checkAuthStatus();
+    } else {
+      loginErrorMsg.style.display = 'block';
+    }
+  });
+
+  logoutBtn.addEventListener('click', () => {
+    sessionStorage.removeItem('ci_admin_logged_in');
+    checkAuthStatus();
+  });
+
+  checkAuthStatus();
+
+  // --- FIREBASE & APP LOGIC ---
+  const firebaseConfig = {
+    apiKey: "AIzaSyAmzmNMEYiBOBztFEPS_0Sbu00wyRpGfYk",
+    authDomain: "dtr-for-ci.firebaseapp.com",
+    databaseURL: "https://dtr-for-ci-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "dtr-for-ci",
+    storageBucket: "dtr-for-ci.firebasestorage.app",
+    messagingSenderId: "986157220435",
+    appId: "1:986157220435:web:cc8d3b92af4edd185abca6",
+    measurementId: "G-FL59MT9KSZ"
+  };
+  
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  const videoEl = document.getElementById('video');
+  const resultDiv = document.getElementById('result');
+
+  const startBtn = document.getElementById('start-btn');
+  const stopBtn = document.getElementById('stop-btn');
+  const exportBtn = document.getElementById('export-btn');
+  const printBtn = document.getElementById('print-btn');
+  const resetBtn = document.getElementById('reset-btn');
+
+  const scanSession = document.getElementById('scan-session');
+  const manualForm = document.getElementById('manual-form');
+  const manualName = document.getElementById('manual-name');
+  const manualEmail = document.getElementById('manual-email');
+  const manualSession = document.getElementById('manual-session');
+  const manualMode = document.getElementById('manual-mode');
+  const manualTime = document.getElementById('manual-time');
+
+  const logsSearch = document.getElementById('logs-search');
+  const logsBody = document.getElementById('logs-body');
+  const clockElem = document.getElementById('clock');
+  const netStatusElem = document.getElementById('net-status');
+
+  const tableContainer = document.getElementById('table-container');
+  const slideLeftBtn = document.getElementById('slide-left');
+  const slideRightBtn = document.getElementById('slide-right');
+
+  const codeReader = new ZXing.BrowserQRCodeReader();
+
+  let scanning = false;
+  let scanCooldowns = {};
+  let logsMap = {}; 
+  let activeUnsubscribe = null;
+
+  function updateNetworkStatus() {
+    if (navigator.onLine) {
+      netStatusElem.textContent = "🟢 Online";
+      netStatusElem.className = "online";
+    } else {
+      netStatusElem.textContent = "🔴 Offline (Manual Queue)";
+      netStatusElem.className = "offline";
+    }
+  }
+  window.addEventListener('online', updateNetworkStatus);
+  window.addEventListener('offline', updateNetworkStatus);
+  updateNetworkStatus();
+
+  function getPHTDateObj() {
+    return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+  }
+  function pad(n){ return String(n).padStart(2, '0'); }
+  function todayYMD(){ 
+    const d = getPHTDateObj();
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; 
+  }
+  function timeHMS(){ 
+    const d = getPHTDateObj();
+    return d.toLocaleTimeString("en-US", { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' }); 
+  }
+  function escapeHtml(s){ if(s==null) return ''; return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+  function updateClock(){
+    const d = getPHTDateObj();
+    clockElem.textContent = `${d.toLocaleTimeString("en-US")} (PHT)`;
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  function setDefaultManualTime() {
+    const d = getPHTDateObj();
+    manualTime.value = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  setDefaultManualTime();
+
+  function setResult(msg, status='info'){
+    const icons = { success:'✅', error:'❌', warning:'⚠️', info:'ℹ️' };
+    resultDiv.textContent = `${icons[status]||''} ${msg}`;
+    resultDiv.className = '';
+    resultDiv.classList.add(`status-${status}`);
+  }
+
+  async function startScanner(){
+    if (!navigator.onLine) {
+      setResult('QR Scanner disabled while offline.', 'warning');
+      return;
+    }
+    if (scanning) return;
+    try {
+      const devices = await codeReader.listVideoInputDevices();
+      if (!devices || devices.length === 0) {
+        setResult('No camera devices found.', 'error');
+        return;
+      }
+      const back = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[0];
+      scanning = true;
+      setResult('Point camera to a QR code.', 'info');
+
+      codeReader.decodeFromVideoDevice(back.deviceId, videoEl, (result, err) => {
+        if (result && result.getText) handleScan(result.getText());
+        else if (err && !(err instanceof ZXing.NotFoundException)) {
+          console.error('ZXing error:', err);
+          setResult('Camera error: ' + err.message, 'error');
+        }
+      });
+      startBtn.disabled = true; stopBtn.disabled = false;
+    } catch(e){
+      console.error('startScanner', e);
+      setResult('Camera error: ' + (e.message || e), 'error');
+    }
+  }
+
+  function stopScanner(){
+    try { codeReader.reset(); } catch(e){}
+    scanning = false;
+    setResult('Scanner stopped.', 'info');
+    startBtn.disabled = false; stopBtn.disabled = true;
+  }
+
+  async function handleScan(text){
+    if (!scanning) return;
+    if (!navigator.onLine) {
+      setResult('Camera scanning disabled offline.', 'warning');
+      stopScanner();
+      return;
+    }
+
+    const raw = String(text || '').trim();
+    if (!raw) return;
+    const now = Date.now();
+    if (scanCooldowns[raw] && (now - scanCooldowns[raw] < 4000)) return;
+    scanCooldowns[raw] = now;
+
+    const parts = raw.split('|');
+    const uid = parts[0].trim();
+    let mode = parts[1] ? parts[1].trim().toUpperCase() : 'IN';
+
+    if (!uid) {
+      setResult('Invalid UID in QR code.', 'error');
+      return;
+    }
+
+    const dateStr = todayYMD();
+    const timeStr = timeHMS();
+    const session = scanSession.value;
+
+    try {
+      const profSnap = await get(ref(db, `users/${uid}/profile`));
+      if (!profSnap.exists()){
+        setResult(`UID ${uid} not registered.`, 'error');
+        return;
+      }
+      const profile = profSnap.val();
+      await recordEntry(uid, profile.name || 'Unknown', profile.email || '', session, mode, dateStr, timeStr);
+    } catch(err){
+      console.error('Error saving DTR:', err);
+      setResult('Error saving time record: ' + (err.message || err), 'error');
+    }
+  }
+
+  async function recordEntry(id, name, email, session, mode, dateStr, timeStr) {
+    const safeKey = String(id).replace(/[\.\$\#\[\]\/]/g, '_');
+    const recordRef = ref(db, `dtr_logs/${dateStr}/${safeKey}`);
+    const fieldKey = `${session.toLowerCase()}${mode === 'IN' ? 'In' : 'Out'}`;
+    
+    let existingData = { name, email };
+
+    if (navigator.onLine) {
+      try {
+        const snap = await get(recordRef);
+        if (snap.exists()) existingData = snap.val();
+      } catch (e) {
+        console.warn('Network read error, saving record locally:', e);
+      }
+    } else if (logsMap[safeKey]) {
+      existingData = logsMap[safeKey];
+    }
+
+    if (existingData[fieldKey]) {
+      setResult(`${name} already has ${session} ${mode} recorded.`, 'warning');
+      return;
+    }
+
+    const updatedData = {
+      ...existingData,
+      name,
+      email,
+      [fieldKey]: timeStr
+    };
+
+    const setPromise = set(recordRef, updatedData);
+
+    logsMap[safeKey] = updatedData;
+    renderLogs(logsSearch.value || '');
+
+    if (!navigator.onLine) {
+      setResult(`Offline: ${name}'s ${session} ${mode} saved locally. Will sync when online!`, 'warning');
+    } else {
+      await setPromise;
+      setResult(`Recorded ${session} ${mode} for ${name} at ${timeStr}`, 'success');
+    }
+
+    const snd = document.getElementById('success-sound');
+    if (snd) { snd.currentTime = 0; snd.play().catch(()=>{}); }
+  }
+
+  manualEmail.addEventListener('input', async (e) => {
+    const searchEmail = e.target.value.trim().toLowerCase();
+    if (!searchEmail || !navigator.onLine) return;
+
+    try {
+      const usersSnap = await get(ref(db, 'users'));
+      if (usersSnap.exists()) {
+        const usersObj = usersSnap.val();
+        for (const uid in usersObj) {
+          if (usersObj[uid].profile && usersObj[uid].profile.email.toLowerCase() === searchEmail) {
+            if (usersObj[uid].profile.name) {
+              manualName.value = usersObj[uid].profile.name;
+            }
+            break;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("User email lookup error:", err);
+    }
+  });
+
+  manualForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = manualName.value.trim();
+    const email = manualEmail.value.trim().toLowerCase();
+    const session = manualSession.value;
+    const mode = manualMode.value;
+    
+    const [hrs, mins] = manualTime.value.split(':');
+    const timeObj = new Date();
+    timeObj.setHours(parseInt(hrs), parseInt(mins));
+    const formattedTime = timeObj.toLocaleTimeString("en-US", { hour12: true, hour: '2-digit', minute: '2-digit' });
+
+    const dateStr = todayYMD();
+    let targetUid = 'manual_' + btoa(email).replace(/=/g, ''); 
+
+    try {
+      if (navigator.onLine) {
+        const usersSnap = await get(ref(db, 'users'));
+        if (usersSnap.exists()) {
+          const usersObj = usersSnap.val();
+          for (const uid in usersObj) {
+            if (usersObj[uid].profile && usersObj[uid].profile.email.toLowerCase() === email) {
+              targetUid = uid;
+              break;
+            }
+          }
+        }
+      }
+
+      await recordEntry(targetUid, name, email, session, mode, dateStr, formattedTime);
+      manualName.value = '';
+      manualEmail.value = '';
+      setDefaultManualTime();
+    } catch(err) {
+      console.error('Manual Entry Error:', err);
+      setResult('Failed to record entry: ' + (err.message || err), 'error');
+    }
+  });
+
+  function renderLogs(filterText=''){
+    const ft = (filterText || '').toLowerCase();
+    const entries = Object.values(logsMap).filter(e =>
+      (e.name || '').toLowerCase().includes(ft) ||
+      (e.email || '').toLowerCase().includes(ft)
+    );
+
+    if (entries.length === 0){
+      logsBody.innerHTML = '<tr><td colspan="7" class="no-records">No records today</td></tr>';
+      return;
+    }
+
+    logsBody.innerHTML = entries.map(entry => {
+      return `<tr>
+        <td class="left-align"><strong>${escapeHtml(entry.name)}</strong><br/><small style="color:var(--muted)">${escapeHtml(entry.email)}</small></td>
+        <td data-label="Morning In">${escapeHtml(entry.morningIn || '--')}</td>
+        <td data-label="Morning Out">${escapeHtml(entry.morningOut || '--')}</td>
+        <td data-label="Afternoon In">${escapeHtml(entry.afternoonIn || '--')}</td>
+        <td data-label="Afternoon Out">${escapeHtml(entry.afternoonOut || '--')}</td>
+        <td data-label="Evening In">${escapeHtml(entry.eveningIn || '--')}</td>
+        <td data-label="Evening Out">${escapeHtml(entry.eveningOut || '--')}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  logsSearch.addEventListener('input', e => renderLogs(e.target.value || ''));
+
+  function exportCSV(){
+    const entries = Object.values(logsMap);
+    if (!entries || entries.length === 0) { alert('No data to export'); return; }
+    
+    const headers = ['Name','Email','Morning In','Morning Out','Afternoon In','Afternoon Out','Evening In','Evening Out'];
+    const rows = entries.map(r => [
+      r.name, r.email, 
+      r.morningIn||'--', r.morningOut||'--', 
+      r.afternoonIn||'--', r.afternoonOut||'--', 
+      r.eveningIn||'--', r.eveningOut||'--'
+    ]);
+    
+    let csv = headers.join(',') + '\r\n';
+    rows.forEach(cols => {
+      csv += cols.map(c => `"${String(c||'').replace(/"/g,'""')}"`).join(',') + '\r\n';
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `CI_DTR_${todayYMD()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  exportBtn.addEventListener('click', exportCSV);
+
+  function printLogs(){
+    const entries = Object.values(logsMap);
+    if (!entries || entries.length === 0) { alert('No logs available to print today.'); return; }
+    
+    const html = `<html><head><title>Clinical Instructor DTR Report - ${todayYMD()}</title>
+      <style>
+        body{font-family:Arial;color:#111;padding:20px}
+        h2{margin-bottom:5px;}
+        p{margin-top:0;color:#666;font-size:14px;}
+        table{width:100%;border-collapse:collapse;margin-top:15px;}
+        th,td{border:1px solid #ccc;padding:8px;text-align:center;font-size:12px;}
+        th{background:#f2f2f2;}
+        .left{text-align:left;}
+      </style>
+      </head><body>
+      <h2>Clinical Instructor DTR</h2>
+      <p>Date: ${todayYMD()}</p>
+      <table>
+        <thead>
+          <tr>
+            <th class="left">Name</th>
+            <th>Morning In</th><th>Morning Out</th>
+            <th>Afternoon In</th><th>Afternoon Out</th>
+            <th>Evening In</th><th>Evening Out</th>
+          </tr>
+        </thead>
+        <tbody>` +
+        entries.map(r => `<tr>
+          <td class="left"><strong>${escapeHtml(r.name)}</strong></td>
+          <td>${escapeHtml(r.morningIn || '--')}</td>
+          <td>${escapeHtml(r.morningOut || '--')}</td>
+          <td>${escapeHtml(r.afternoonIn || '--')}</td>
+          <td>${escapeHtml(r.afternoonOut || '--')}</td>
+          <td>${escapeHtml(r.eveningIn || '--')}</td>
+          <td>${escapeHtml(r.eveningOut || '--')}</td>
+        </tr>`).join('') +
+      `</tbody></table></body></html>`;
+
+    const w = window.open('', '_blank', 'width=1000,height=700');
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    w.print();
+  }
+
+  printBtn.addEventListener('click', printLogs);
+
+  async function resetToday(){
+    if (!confirm('Archive today\'s shift logs and clear live board?')) return;
+    const dateStr = todayYMD();
+    const todayRef = ref(db, `dtr_logs/${dateStr}`);
+    const archiveRef = ref(db, `archives/${dateStr}`);
+    try {
+      const snap = await get(todayRef);
+      if (!snap.exists()) {
+        alert('No logs to archive for today.');
+        return;
+      }
+      await set(archiveRef, snap.val());
+      await remove(todayRef);
+      setResult('Archived and reset today\'s logs successfully.', 'success');
+    } catch(err){
+      console.error('resetToday', err);
+      setResult('Failed to reset: ' + (err.message || err), 'error');
+    }
+  }
+
+  resetBtn.addEventListener('click', resetToday);
+
+  function listenLogs(){
+    if (activeUnsubscribe) activeUnsubscribe();
+
+    const dateStr = todayYMD();
+    const todayRef = ref(db, `dtr_logs/${dateStr}`);
+    
+    activeUnsubscribe = onValue(todayRef, (snapshot) => {
+      if (snapshot.exists()) {
+        logsMap = snapshot.val();
+      } else {
+        logsMap = {};
+      }
+      renderLogs(logsSearch.value || '');
+    }, (err) => {
+      console.error("Firebase read error:", err);
+    });
+  }
+
+  slideLeftBtn.addEventListener('click', () => {
+    tableContainer.scrollBy({ left: -280, behavior: 'smooth' });
+  });
+
+  slideRightBtn.addEventListener('click', () => {
+    tableContainer.scrollBy({ left: 280, behavior: 'smooth' });
+  });
+
+  startBtn.addEventListener('click', startScanner);
+  stopBtn.addEventListener('click', stopScanner);
+  listenLogs();
+  
+  setInterval(listenLogs, 300000); // Re-bind listener every 5 mins for date roll-over
+  </script>
+  
+  <audio id="success-sound" src="Thank you.mp3" preload="auto"></audio>
+</body>
+</html>
